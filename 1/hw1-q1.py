@@ -55,9 +55,6 @@ class Perceptron(LinearModel):
 
 
 class LogisticRegression(LinearModel):
-    def sigmoid(z):
-        return 1 / (1 + np.exp(-z))
-    
     def update_weight(self, x_i, y_i, learning_rate=0.001):
         """
         x_i (n_features): a single training example
@@ -69,12 +66,11 @@ class LogisticRegression(LinearModel):
             for i in range(self.W.shape[0]):
                 y_pred = np.dot(self.W, x_i)
                 if i == y_i:
-                    dL = np.exp(y_pred[i]) / np.exp(y_pred).sum() - 1
-                    self.W[i] -= learning_rate * x_i * dL
+                    dL = np.exp(y_pred[i]) / np.exp(y_pred).sum()
+                    self.W[i] -= learning_rate * x_i * (dL - 1)
                 else:
                     dL = np.exp(y_pred[i]) / np.exp(y_pred).sum()
                     self.W[i] -= learning_rate * x_i * dL
-                
 
 
 class MLP(object):
@@ -83,22 +79,26 @@ class MLP(object):
     # in main().
     def __init__(self, n_classes, n_features, hidden_size):
         # Initialize an MLP with a single hidden layer.
-        self.W = np.zeros((hidden_size, n_classes, n_features)) 
+        self.W1 = np.random.normal(loc=0.1, scale=0.1, size=(n_features, hidden_size))
+        self.W2 = np.random.normal(loc=0.1, scale=0.1, size=(hidden_size, n_classes))
+        self.b1 = np.zeros(hidden_size).T
+        self.b2 = np.zeros(n_classes).T
 
     def relu(x):
-        if x > 0:
-            return x
-        else:
-            return 0
+        return np.maximum(0, x)
+    
+    def step_function(x):
+        return np.where(x < 0, 0, 1)
 
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes, whereas this is required
         # at training time.
-        for W in self.W:
-            X = MLP.relu(np.dot(W, X.T))
 
-        return X.argmax(axis=0)
+        y_pred = MLP.relu(X.dot(self.W1) + self.b1)
+        y_pred = MLP.relu(y_pred.dot(self.W2) + self.b2)
+
+        return y_pred.argmax(axis=1)
 
     def evaluate(self, X, y):
         """
@@ -116,16 +116,34 @@ class MLP(object):
         Dont forget to return the loss of the epoch.
         """
         loss = 0
-        for x_i, y_i in zip(X, y): # NEED TO BE RANDOMIZED
-            if np.dot(self.W, x_i).argmax(axis=0) != y_i:
-                for i in range(self.W.shape[0]):
-                    y_pred = np.dot(self.W, x_i)
-                    if i == y_i:
-                        dL = np.exp(y_pred[i]) / np.exp(y_pred).sum() - 1
-                        self.W[i] -= learning_rate * x_i * dL
-                    else:
-                        dL = np.exp(y_pred[i]) / np.exp(y_pred).sum()
-                        self.W[i] -= learning_rate * x_i * dL
+        for _ in range(y.shape[0]):
+            i = np.random.randint(0, y.shape[0])
+
+            # Forward propagation
+            z1 = X[i].dot(self.W1) + self.b1
+            h1 = MLP.relu(z1)
+            
+            z2 = h1.dot(self.W2) + self.b2
+
+            # Loss
+            p = np.exp(z2) / sum(np.exp(z2))
+            loss += np.linalg.norm(-y[i]*np.log(p))
+
+            # Backward propagation
+            grad_z2 = p - y[i]
+            grad_W2 = grad_z2[:, None].dot(h1[:, None].T)
+            grad_b2 = grad_z2
+            grad_h1 = self.W2.dot(grad_z2)
+
+            grad_z1 = grad_h1 * MLP.step_function(z1) 
+            grad_W1 = grad_z1[:, None].dot(X[i][:, None].T)
+            grad_b1 = grad_z1
+            
+            # Update weights
+            self.W1 -= learning_rate*grad_W1.T
+            self.b1 -= learning_rate*grad_b1.T
+            self.W2 -= learning_rate*grad_W2.T
+            self.b2 -= learning_rate*grad_b2.T
         return loss
 
 
