@@ -46,12 +46,10 @@ class Perceptron(LinearModel):
         other arguments are ignored
         """
         # Q1.1a
-        if np.dot(self.W, x_i).argmax(axis=0) != y_i:
-            for i in range(self.W.shape[0]):
-                if i == y_i:
-                    self.W[i] += x_i
-                else:
-                    self.W[i] -= x_i
+        y_pred = np.dot(self.W, x_i).argmax(axis=0)
+        if y_pred != y_i:
+            self.W[y_i] += x_i
+            self.W[y_pred] -= x_i
 
 
 class LogisticRegression(LinearModel):
@@ -62,15 +60,14 @@ class LogisticRegression(LinearModel):
         learning_rate (float): keep it at the default value for your plots
         """
         # Q1.1b
-        if np.dot(self.W, x_i).argmax(axis=0) != y_i:
-            for i in range(self.W.shape[0]):
-                y_pred = np.dot(self.W, x_i)
-                if i == y_i:
-                    dL = np.exp(y_pred[i]) / np.exp(y_pred).sum()
-                    self.W[i] -= learning_rate * x_i * (dL - 1)
-                else:
-                    dL = np.exp(y_pred[i]) / np.exp(y_pred).sum()
-                    self.W[i] -= learning_rate * x_i * dL
+        
+        y_pred = np.dot(self.W, x_i)
+
+        exp_scores = np.exp(y_pred - np.max(y_pred))
+        dL = exp_scores / exp_scores.sum()
+        dL[y_i] -= 1
+        self.W = self.W - learning_rate * np.outer(dL, x_i)
+
 
 
 class MLP(object):
@@ -116,35 +113,39 @@ class MLP(object):
         Dont forget to return the loss of the epoch.
         """
         loss = 0
-        for _ in range(y.shape[0]):
-            i = np.random.randint(0, y.shape[0])
+        for _ in range(X.shape[0]): 
+            i = np.random.randint(0, X.shape[0])
 
             # Forward propagation
             z1 = X[i].dot(self.W1) + self.b1
             h1 = MLP.relu(z1)
-            
             z2 = h1.dot(self.W2) + self.b2
 
+            # Softmax activation for multinomial logistic loss
+            exp_scores = np.exp(z2 - np.max(z2))
+            p = exp_scores / exp_scores.sum()
+
             # Loss
-            p = np.exp(z2) / sum(np.exp(z2))
-            loss += np.linalg.norm(-y[i]*np.log(p))
+            loss += -np.log(p[y[i]])
 
             # Backward propagation
-            grad_z2 = p - y[i]
-            grad_W2 = grad_z2[:, None].dot(h1[:, None].T)
+            grad_z2 = p.copy()
+            grad_z2[y[i]] -= 1  # Derivative of cross-entropy loss with softmax
+            grad_W2 = np.outer(h1, grad_z2)
             grad_b2 = grad_z2
             grad_h1 = self.W2.dot(grad_z2)
 
-            grad_z1 = grad_h1 * MLP.step_function(z1) 
-            grad_W1 = grad_z1[:, None].dot(X[i][:, None].T)
+            grad_z1 = grad_h1 * MLP.step_function(z1)
+            grad_W1 = np.outer(X[i], grad_z1)
             grad_b1 = grad_z1
-            
+
             # Update weights
-            self.W1 -= learning_rate*grad_W1.T
-            self.b1 -= learning_rate*grad_b1.T
-            self.W2 -= learning_rate*grad_W2.T
-            self.b2 -= learning_rate*grad_b2.T
-        return loss
+            self.W1 -= learning_rate * grad_W1
+            self.b1 -= learning_rate * grad_b1
+            self.W2 -= learning_rate * grad_W2
+            self.b2 -= learning_rate * grad_b2
+
+        return loss / X.shape[0]  # Normalize the loss by the number of samples
 
 
 def plot(epochs, train_accs, val_accs):
