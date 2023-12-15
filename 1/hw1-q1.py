@@ -60,14 +60,12 @@ class LogisticRegression(LinearModel):
         learning_rate (float): keep it at the default value for your plots
         """
         # Q1.1b
-        
         y_pred = np.dot(self.W, x_i)
 
         exp_scores = np.exp(y_pred - np.max(y_pred))
         dL = exp_scores / exp_scores.sum()
         dL[y_i] -= 1
         self.W = self.W - learning_rate * np.outer(dL, x_i)
-
 
 
 class MLP(object):
@@ -78,12 +76,12 @@ class MLP(object):
         # Initialize an MLP with a single hidden layer.
         self.W1 = np.random.normal(loc=0.1, scale=0.1, size=(n_features, hidden_size))
         self.W2 = np.random.normal(loc=0.1, scale=0.1, size=(hidden_size, n_classes))
-        self.b1 = np.zeros(hidden_size).T
-        self.b2 = np.zeros(n_classes).T
+        self.b1 = np.zeros(hidden_size)
+        self.b2 = np.zeros(n_classes)
 
     def relu(x):
         return np.maximum(0, x)
-    
+
     def step_function(x):
         return np.where(x < 0, 0, 1)
 
@@ -113,11 +111,9 @@ class MLP(object):
         Dont forget to return the loss of the epoch.
         """
         loss = 0
-        for _ in range(X.shape[0]): 
-            i = np.random.randint(0, X.shape[0])
-
+        for x_i, y_i in zip(X, y):
             # Forward propagation
-            z1 = X[i].dot(self.W1) + self.b1
+            z1 = x_i.dot(self.W1) + self.b1
             h1 = MLP.relu(z1)
             z2 = h1.dot(self.W2) + self.b2
 
@@ -126,17 +122,17 @@ class MLP(object):
             p = exp_scores / exp_scores.sum()
 
             # Loss
-            loss += -np.log(p[y[i]])
+            loss += -np.log(p[y_i])
 
             # Backward propagation
             grad_z2 = p.copy()
-            grad_z2[y[i]] -= 1  # Derivative of cross-entropy loss with softmax
+            grad_z2[y_i] -= 1  # Derivative of cross-entropy loss with softmax
             grad_W2 = np.outer(h1, grad_z2)
             grad_b2 = grad_z2
             grad_h1 = self.W2.dot(grad_z2)
 
             grad_z1 = grad_h1 * MLP.step_function(z1)
-            grad_W1 = np.outer(X[i], grad_z1)
+            grad_W1 = np.outer(x_i, grad_z1)
             grad_b1 = grad_z1
 
             # Update weights

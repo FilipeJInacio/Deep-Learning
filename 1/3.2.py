@@ -21,14 +21,16 @@ def sign_v(array):
     return np.where(array >= 0, 1, -1)
 
 
-k = -2
+i = -2
+j = -2
+k = 2
 A = -1
 B = 3
 D = 7
 
-W1 = np.array([[-2] * D, [2] * D])
-W2 = np.array([1, 1])
-B1 = np.array([-k * A + k / 2, k * B + k / 2])
+W1 = np.array([[i] * D, [-j] * D])
+W2 = np.array([k*sign_v(i), k*sign_v(j)])
+B1 = np.array([-i * A + i / 2, j * B + j / 2])
 B2 = np.array([-1])
 
 
